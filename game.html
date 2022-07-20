@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        canvas {
+            border: 1px solid #d3d3d3;
+            background-color: #fff;
+        }
+    </style>
+</head>
+
+<body onload="startGame()">
+    <script>
+
+        var myGamePiece;
+        var myBackground;
+        var flowers = [];
+        var bombs = [];
+        var myScore;
+        var score = 0;
+        var gameover = false;
+        var randomCreation = 1;
+        var i;
+        /*===============================================*/
+        /* starting game and creating promary components*/
+        /*===============================================*/
+        function startGame() {
+            myGamePiece = new avatar();
+            myBackground = new component(window.innerWidth, 100, "ground.png", 0, (window.innerHeight - 100), "image");
+            myScore = new component("50px", "consolus", "black", 1000, 100, "text");
+            myGameArea.start();
+        }
+
+
+        var myGameArea = {
+            canvas: document.createElement("canvas"),
+            start: function () {
+                this.canvas.width = window.innerWidth - 10;
+                this.canvas.height = window.innerHeight - 10;
+                this.context = this.canvas.getContext("2d");
+                document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+                this.Hz = 0;
+                this.interval = setInterval(updateGameArea, 20);
+                addEventListener("keydown", function (key) { move(key) });
+                addEventListener("keyup", function (key) { clearMove() });
+            },
+            clear: function () {
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            },
+            stop: function () {
+                clearInterval(this.interval);
+            }
+        }
+
+        /*===============================================*/
+        /* TheAvatar*/
+        /*===============================================*/
+        function avatar() {
+            this.image = new Image();
+            this.image.src = "Avatar.webp";
+            this.width = 100;
+            this.height = 100;
+            this.speedX = 0;
+            this.speedY = 0;
+            this.gravity = 0.3;
+            this.gravitySpeed = 0;
+            this.x = window.innerWidth / 2;
+            this.y = window.innerHeight - 500;
+            this.jump = function () {
+                if (Math.floor(this.gravitySpeed) == 10) {
+                    this.gravitySpeed = -10;
+                }
+            }
+            this.update = function () {
+                ctx = myGameArea.context;
+                ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+            }
+            this.pos = function () {
+                if (this.gravitySpeed < 10) {
+                    this.gravitySpeed += this.gravity;
+                }
+                if (((this.x + this.speedX) > 0) && ((this.x + this.speedX) < (window.innerWidth))) {
+                    this.x += this.speedX;
+                }
+                if (((this.y + this.speedY + this.gravitySpeed) < window.innerHeight - 170)) {
+                    this.y += this.speedY + this.gravitySpeed;
+                }
+            }
+            this.newPos = function () {
+                this.x += this.speedX;
+                this.y += this.speedY;
+            }
+            this.crashWith = function (otherobj) {
+                var myleft = this.x + 30;
+                var myright = this.x - 30 + (this.width);
+                var mytop = this.y + 20;
+                var mybottom = this.y - 20 + (this.height);
+                var otherleft = otherobj.x;
+                var otherright = otherobj.x + (otherobj.width);
+                var othertop = otherobj.y;
+                var otherbottom = otherobj.y + (otherobj.height);
+                var crash = true;
+                if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
+                    crash = false;
+                }
+                return crash;
+            }
+        }
+
+        /*===============================================*/
+        /* components constructor*/
+        /*===============================================*/
+
+        function component(width, height, color, x, y, type) {
+            this.type = type;
+            if (type == "image") {
+                this.image = new Image();
+                this.image.src = color;
+            }
+            this.width = width;
+            this.height = height;
+            this.speedY = 0;
+            this.x = x;
+            this.y = y;
+            this.update = function () {
+                ctx = myGameArea.context;
+                if (type == "image") {
+                    ctx.drawImage(this.image,
+                        this.x,
+                        this.y,
+                        this.width, this.height);
+                }
+                else {
+                    ctx.font = this.width + " " + this.height;
+                    ctx.fillStyle = color;
+                    ctx.fillText(this.text, this.x, this.y);
+                }
+            }
+            this.newPos = function () {
+                this.y += this.speedY;
+            }
+        }
+
+        /*===============================================*/
+        /* canvas updating*/
+        /*===============================================*/
+        function updateGameArea() {
+
+            /*===============================================*/
+            /* being able to touch flowers*/
+            /*===============================================*/
+            for (i = 0; i < flowers.length; i++) {
+                if (flowers[i].y > window.innerHeight)
+                    flowers.splice(i, 1)
+                if (myGamePiece.crashWith(flowers[i])) {
+                    score += 10;
+                    flowers.splice(i, 1)
+                }
+            }
+            /*===============================================*/
+            /* crashing with bombs and dying*/
+            /*===============================================*/
+            for (i = 0; i < bombs.length; i++)
+                if (gameover) {
+                    myGameArea.stop();
+                    return;
+                }
+            if (bombs[i].y > window.innerHeight)
+                bombs.splice(i, 1)
+            if (myGamePiece.crashWith(bombs[i])) {
+                bombs.splice(i, 1);
+                myGamePiece.image.src = "blasted.jpg";
+                myScore.update();
+                myGamePiece.update();
+                myBackground.update();
+                gameover = true;
+            }
+
+            myGameArea.clear();
+            if (everyInterval(randomCreation)) {
+                flowers.push(new component(30, 30, "f1.png", (Math.random() * (1000 - 20 + 1) + 20), 0, "image"));
+                if (randomCreation % 2 == 0) {
+                    bombs.push(new component(30, 30, "ab.jpg", (Math.random() * (1000 - 20 + 1) + 20), 0, "image"));
+                }
+            }
+
+            /*===============================================*/
+            /* updating positions*/
+            /*===============================================*/
+            for (i = 0; i < bombs.length; i++) {
+                bombs[i].speedY = 1;
+                bombs[i].newPos();
+                bombs[i].update(); bombs
+            }
+            for (i = 0; i < flowers.length; i++) {
+                flowers[i].speedY = 1;
+                flowers[i].newPos();
+                flowers[i].update();
+            }
+            myGameArea.Hz++;
+            myScore.text = "SCORE: " + score;
+            myScore.update();
+            myGamePiece.pos();
+            myGamePiece.update();
+            myBackground.update();
+        }
+
+
+
+
+        /*===============================================*/
+        /* creating components at random intervals*/
+        /*===============================================*/
+        function everyInterval(n) {
+            if ((myGameArea.Hz / n) % 1 == 0) {
+                randomCreation = Math.floor(Math.random() * 200 + 10);
+                return true;
+            }
+            return false;
+        }
+
+
+
+
+
+
+
+        /*===============================================*/
+        /* controlls */
+        /*===============================================*/
+        function move(dir) {
+
+            switch (dir.keyCode) {
+                case 65:
+                case 37:
+                    myGamePiece.speedX = -3;
+                    break;
+                case 68:
+                case 39:
+                    myGamePiece.speedX = 3;
+                    break;
+                case 87:
+                case 38:
+                case 32:
+                    myGamePiece.jump();
+                    break;
+                case 90:
+                case 40:
+                    myGamePiece.speedY = 3;
+                    break;
+            }
+        }
+        function clearMove() {
+            myGamePiece.speedX = 0;
+            myGamePiece.speedY = 0;
+        }
+    /*===============================================*/
+        /* end*/
+        /*===============================================*/
+    </script>
+
+</body>
+
+</html>
